@@ -515,8 +515,17 @@ Writer.prototype.flush = function() {
 
 	var header = new Buffer(3);
 
-	header.writeUInt8(this.key === null ? 0x00 : 0x10, 0);
-	header.writeUInt16BE(output.length, 1);
+	// 24-bit size header. top bit set to 1 if encryped
+	var size = output.length;
+	if ((size & 0x0fffff) !== size) {
+		throw new Error('Buffer output exceed maximum capacity size='+size+' max='+0x0fffff);
+	} 
+
+	if (this.key !== null) size = (size & 0x0fffff) | 0x100000;
+
+	header.writeUInt8((size & 0xff0000) >> 16, 0);
+	header.writeUInt8((size & 0x00ff00) >> 8 , 1);
+	header.writeUInt8((size & 0x0000ff)      , 2);
 
 	try {
 		return Buffer.concat([header, output], header.length + output.length);

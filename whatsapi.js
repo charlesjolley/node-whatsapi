@@ -6,6 +6,7 @@ var url         = require('url');
 var tls         = require('tls');
 var http        = require('http');
 var https       = require('https');
+var temp 				= require('temp').track();
 var querystring = require('querystring');
 var imagick     = require('imagemagick');
 var mime        = require('mime');
@@ -21,6 +22,12 @@ var MediaType = {
 	VIDEO : 'video',
 	AUDIO : 'audio'
 };
+
+var _tempdir = null;
+function tempdir() {
+	if (!_tempdir) _tempdir = temp.mkdirSync('whatsapi');
+	return _tempdir;
+}
 
 function WhatsApi(config, reader, writer, processor, transport) {
 	this.config    = common.extend({}, this.defaultConfig, config);
@@ -789,7 +796,11 @@ WhatsApi.prototype.downloadMediaFile = function(destUrl, callback) {
 		});
 
 		res.on('end', function() {
-			var path = __dirname + '/media/media-' + crypto.randomBytes(4).readUInt32LE(0) + ext;
+			if (res.headers['content-type'].match(/^image\//)) {
+				ext = '.'+res.headers['content-type'].slice(("image/".length))
+			}
+
+			var path = tempdir() + '/media-' + crypto.randomBytes(4).readUInt32LE(0) + ext;
 
 			fs.writeFile(path, Buffer.concat(buffers), function(err) {
 				if(err) {
